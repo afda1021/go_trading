@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "go_trading/app/controllers"
 
 func main() {
-	fmt.Println("Hello world")
+	controllers.StreamIngestionData()
 }
