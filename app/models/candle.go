@@ -70,3 +70,32 @@ func CreateCandleWithDuration(ticker bitflyer.Ticker, duration time.Duration) {
 	currentCandle.Close = price
 	currentCandle.Save() //DBのcandleを更新
 }
+
+/* 指定されたテーブルから全てのcandleを取得 */
+func GetAllCandle(duration time.Duration, limit int) (dfCandle *DataFrameCandle, err error) {
+	tableName := fmt.Sprintf("BTC_USD_%s", duration)
+	cmd := fmt.Sprintf(`SELECT * FROM (
+		SELECT time, open, close, high, low, volume FROM %s ORDER BY time DESC LIMIT ?
+		) ORDER BY time ASC;`, tableName)
+	rows, err := DbConnection.Query(cmd, limit)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	dfCandle = &DataFrameCandle{} //読み取った全candleの格納用
+	dfCandle.Duration = duration
+	for rows.Next() {
+		var candle Candle //読み取ったcandleの格納用
+		candle.Duration = duration
+		var times string //Scanはstring型で返す
+		err = rows.Scan(&times, &candle.Open, &candle.Close, &candle.High, &candle.Low, &candle.Volume)
+		candle.Time, _ = time.Parse(time.RFC3339, times) //stringからtime.Time型に変換
+		dfCandle.Candles = append(dfCandle.Candles, candle)
+	}
+	err = rows.Err()
+	if err != nil {
+		return
+	}
+	return dfCandle, nil
+}

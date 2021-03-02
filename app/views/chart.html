@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chart</title>
+    <style>
+        #dashboard_div{
+            width: 600px;
+            border: 1px solid #ccc;
+        }
+        #chart_div{
+            height:400px;
+            border-bottom: 1px solid #ccc;
+        }
+        #filter_div{
+            height:50px;
+        }
+    </style>
+
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script type="text/javascript">
+        google.charts.load('current', {'packages':['corechart', 'controls']}); //corechart, controlsを読み込む
+
+        var config = {
+            api:{
+                enable: true, //Ajax通信を行うかどうか
+                interval: 1000 * 3
+            },
+            candlestick:{
+                product_code: 'BTC_USD',
+                duration: '1m', //デフォルト値
+                limit: 365,
+                numViews: 5, //Low, Open, Close, High, Vplume
+            },
+        };
+
+        /* dataTableに基づいてチャートを描画 */
+        function drawChart(dataTable) {
+            var chartDiv = document.getElementById('chart_div');
+            var charts = []; //candleとfilterが入る
+            var dashboard = new google.visualization.Dashboard(chartDiv);
+            /* candle stick(chatsの1つ目) */
+            var mainChart = new google.visualization.ChartWrapper({
+                chartType: 'ComboChart',
+                containerId: 'chart_div',
+                options: {
+                    hAxis: {'slantedText': false}, //x座標の時間の斜め表示はfalse
+                    legend: {'position': 'none'},
+                    candlestick: { //色指定
+                        fallingColor: { strokeWidth: 0, fill: '#a52714' },
+                        risingColor: { strokeWidth: 0, fill: '#0f9d58' }
+                    },
+                    /* 基本がcandlesticks、seriesで後から追加できる */
+                    seriesType: "candlesticks",
+                    series: {}
+                },
+                view: {
+                    columns: [
+                        {
+                            calc: function(d, rowIndex) {
+                                return d.getFormattedValue(rowIndex, 0);
+                            },
+                            type: 'string' //時間をstringに変換(日付、0番目)
+                        }, 1, 2, 3, 4 //Low, Open, Close, High
+                    ]
+                }
+            });
+            charts.push(mainChart); //0〜4をcandle stick表示、それをchartsに追加
+
+            var options = mainChart.getOptions();
+            var view = mainChart.getView();
+
+            /* レンジ部分(chatsの2つ目) */
+            var controlWrapper = new google.visualization.ControlWrapper({
+                'controlType': 'ChartRangeFilter',
+                'containerId': 'filter_div',
+                'options': {
+                    'filterColumnIndex': 0,
+                    'ui': {
+                        'chartType': 'LineChart',
+                        'chartView': {
+                            'columns': [0, 4]
+                        }
+                    }
+                }
+            });
+
+            dashboard.bind(controlWrapper, charts); //controlWrapperをchartsに結合
+            dashboard.draw(dataTable); //描画
+        }
+
+        function send(){
+            if (config.api.enable == false){
+                return //dashboard_divにマウスが乗ってる時はAjaxを行わない
+            }
+            var params = {
+                "limit": config.candlestick.limit,
+                "duration": config.candlestick.duration,
+            }
+            $.get("/api/candle/", params).done(function(data){ //Ajaxでサーバーからdataを取得
+                var dataTable = new google.visualization.DataTable(); //データテーブルを作成
+                /* テーブルに値を入れていく */
+                dataTable.addColumn('date', 'Date');
+                dataTable.addColumn('number', 'Low');
+                dataTable.addColumn('number', 'Open');
+                dataTable.addColumn('number', 'Close');
+                dataTable.addColumn('number', 'High');
+                dataTable.addColumn('number', 'Volume');
+
+                var googleChartData = [];
+                var candles = data["candles"]; //DBから取得した全candle
+
+                for(var i=0; i < candles.length; i++){
+                    var candle = candles[i];
+                    var date = new Date(candle.time); //jsのDate型に変換する
+                    var datas = [date, candle.low, candle.open, candle.close, candle.high, candle.volume];
+                    console.log(datas)
+
+                    googleChartData.push(datas) //一つずづgoogleChartDataに追加していく(appendのイメージ)
+                }
+
+                dataTable.addRows(googleChartData);
+                drawChart(dataTable); //dataTableに基づいてチャートを描画
+            })
+        }
+        
+        /* durationをボタンで動的に変化 */
+        function changeDuration(s){
+            config.candlestick.duration = s;
+            send();
+        }
+
+        /* ページが読み込まれたとき実行 */
+        setInterval(send, 1000 * 3) //3秒間隔でsendを呼ぶ
+        window.onload = function () {
+            send()
+            $('#dashboard_div').mouseenter(function() {
+                config.api.enable = false; //dashboard_divにマウスが乗った時はfalse
+            }).mouseleave(function() {
+                config.api.enable = true; //dashboard_divからマウスが出たらtrue
+            });
+        }
+    </script>
+</head>
+<body>
+    <div>
+        <button onclick="changeDuration('1s');">1s</button>
+        <button onclick="changeDuration('1m');">1m</button>
+        <button onclick="changeDuration('1h');">1h</button>
+    </div>
+
+    <div id="dashboard_div">
+        <div id="chart_div"></div> <!--チャート部分-->
+        <div id="filter_div"></div> <!--レンジを変える部分-->
+    </div>
+</body>
+</html>

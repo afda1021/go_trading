@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	// fmt.Println(models.DbConnection) //DB接続
 	controllers.StreamIngestionData() //ticker情報をDBに格納
+	controllers.StartWebServer()      //サーバー起動、candleをブラウザに表示
 }
