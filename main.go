@@ -1,7 +1,10 @@
 package main
 
-import "go_trading/app/controllers"
+import (
+	"go_trading/app/controllers"
+)
 
 func main() {
-	controllers.StreamIngestionData()
+	// fmt.Println(models.DbConnection) //DB接続
+	controllers.StreamIngestionData() //ticker情報をDBに格納
 }

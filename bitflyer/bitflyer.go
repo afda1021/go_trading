@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/url"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -21,6 +22,21 @@ type Ticker struct {
 	Ltp             float64 `json:"ltp"`
 	Volume          float64 `json:"volume"`
 	VolumeByProduct float64 `json:"volume_by_product"`
+}
+
+/* ticker.Timestampをtime.RFC3339に変換 */
+func (t *Ticker) DateTime() time.Time {
+	//t.Timestamp = "2021-01-03T10:01:59.6005284Z"
+	dateTime, err := time.Parse(time.RFC3339, t.Timestamp) //文字列をTime構造体に変換 (第１引数：時刻のフォーマット定義)
+	if err != nil {
+		log.Printf("action=DateTime, err=%s", err.Error())
+	}
+	return dateTime
+}
+
+/* duration(時、分、秒)以下を切り捨て */
+func (t *Ticker) TruncateDateTime(duration time.Duration) time.Time {
+	return t.DateTime().Truncate(duration)
 }
 
 /* JSON-RPCのプロトコルを定義 */

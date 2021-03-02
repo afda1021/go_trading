@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"go_trading/config"
-	"log"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -13,11 +12,7 @@ var DbConnection *sql.DB
 
 func init() {
 	/* DB接続 */
-	DbConnection, err := sql.Open("sqlite3", "stockdata.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	DbConnection, _ = sql.Open("sqlite3", "stockdata.sql")
 	/* テーブル作成(BTC_USD_1h0m0s, BTC_USD_1m0s, BTC_USD_1s) */
 	for _, duration := range config.Durations {
 		tableName := fmt.Sprintf("BTC_USD_%s", duration)
