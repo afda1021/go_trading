@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"go_trading/app/models"
 	"go_trading/bitflyer"
 	"go_trading/config"
@@ -17,7 +16,7 @@ func StreamIngestionData() {
 			for _, duration := range config.Durations { //3つのDBに順番に格納
 				models.CreateCandleWithDuration(ticker, duration) //ticker情報をDBに格納
 			}
-			fmt.Println(ticker)
+			// fmt.Println(ticker)
 		}
 	}()
 }

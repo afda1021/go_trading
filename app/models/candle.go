@@ -26,14 +26,23 @@ func (c *Candle) TableName() string {
 }
 
 /* DBに現時刻のcandleを追加 */
-func (c *Candle) Create() {
-	cmd := fmt.Sprintf("INSERT INTO %s (time, open, close, high, low, volume) VALUES (?,?,?,?,?,?)", c.TableName)
-	DbConnection.Exec(cmd, c.Time.Format(time.RFC3339), c.Open, c.Close, c.High, c.Low, c.Volume)
+func (c *Candle) Create() error {
+	fmt.Println(c)
+	cmd := fmt.Sprintf("INSERT INTO %s (time, open, close, high, low, volume) VALUES (?,?,?,?,?,?)", c.TableName())
+	_, err := DbConnection.Exec(cmd, c.Time.Format(time.RFC3339), c.Open, c.Close, c.High, c.Low, c.Volume)
+	if err != nil {
+		return err
+	}
+	return err
 }
 
-func (c *Candle) Save() {
-	cmd := fmt.Sprintf("UPDATE %s SET open = ?, close = ?, high = ?, low = ?, volume = ? WHERE time = ?", c.TableName)
-	DbConnection.Exec(cmd, c.Open, c.Close, c.High, c.Low, c.Volume, c.Time.Format(time.RFC3339))
+func (c *Candle) Save() error {
+	cmd := fmt.Sprintf("UPDATE %s SET open = ?, close = ?, high = ?, low = ?, volume = ? WHERE time = ?", c.TableName())
+	_, err := DbConnection.Exec(cmd, c.Open, c.Close, c.High, c.Low, c.Volume, c.Time.Format(time.RFC3339))
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 /* 対応するテーブルから現在時刻と一致するデータを取得(存在しない場合は、nil) */

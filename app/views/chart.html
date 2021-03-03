@@ -5,11 +5,12 @@
     <title>Chart</title>
     <style>
         #dashboard_div{
-            width: 600px;
+            width: 1000px;
+            margin: auto;
             border: 1px solid #ccc;
         }
         #chart_div{
-            height:400px;
+            height: 500px;
             border-bottom: 1px solid #ccc;
         }
         #filter_div{
@@ -33,7 +34,23 @@
                 limit: 365,
                 numViews: 5, //Low, Open, Close, High, Vplume
             },
+            dataTable: {
+                index : 0,
+                value: null
+            },
+            sma: {
+                enable: false, //表示するかどうか
+                indexes: [],
+                periods: [], //3つ入る
+                values: []
+            },
         };
+
+        function initConfigValues(){
+            config.dataTable.index = 0;
+            config.sma.indexes = [];
+            config.sma.values = [];
+        }
 
         /* dataTableに基づいてチャートを描画 */
         function drawChart(dataTable) {
@@ -71,6 +88,13 @@
             var options = mainChart.getOptions();
             var view = mainChart.getView();
 
+            if (config.sma.enable == true) {
+                for (i = 0; i < config.sma.indexes.length; i++) {
+                    options.series[config.sma.indexes[i]] = {type: 'line'};
+                    view.columns.push(config.candlestick.numViews + config.sma.indexes[i]);
+                }
+            }
+
             /* レンジ部分(chatsの2つ目) */
             var controlWrapper = new google.visualization.ControlWrapper({
                 'controlType': 'ChartRangeFilter',
@@ -98,7 +122,17 @@
                 "limit": config.candlestick.limit,
                 "duration": config.candlestick.duration,
             }
-            $.get("/api/candle/", params).done(function(data){ //Ajaxでサーバーからdataを取得
+
+            /* SMAを表示する場合、configから読み込んだパラメータをparamsに定義 */
+            if (config.sma.enable == true) {
+                params["sma"] = true;
+                params["smaPeriod1"] = config.sma.periods[0];
+                params["smaPeriod2"] = config.sma.periods[1];
+                params["smaPeriod3"] = config.sma.periods[2];
+            }
+
+            $.get("/api/candle/", params).done(function(data){ //Ajaxでサーバーにparamsを送信し、dataを取得
+                initConfigValues(); //再描画するので一旦初期状態にする
                 var dataTable = new google.visualization.DataTable(); //データテーブルを作成
                 /* テーブルに値を入れていく */
                 dataTable.addColumn('date', 'Date');
@@ -108,6 +142,18 @@
                 dataTable.addColumn('number', 'High');
                 dataTable.addColumn('number', 'Volume');
 
+                /* dataTableにコラムを追加し、configに値を格納*/
+                if (data["smas"] != undefined) {
+                    for (i = 0; i < data['smas'].length; i++){ //3つperiodが存在
+                        var smaData = data['smas'][i]; //各periodのSMAデータ
+                        if (smaData.length == 0){ continue; }
+                        config.dataTable.index += 1;
+                        config.sma.indexes[i] = config.dataTable.index; //順序
+                        dataTable.addColumn('number', 'SMA' + smaData["period"].toString()); //コラムを追加
+                        config.sma.values[i] = smaData["values"] //値を格納
+                    }
+                }
+
                 var googleChartData = [];
                 var candles = data["candles"]; //DBから取得した全candle
 
@@ -116,15 +162,23 @@
                     var date = new Date(candle.time); //jsのDate型に変換する
                     var datas = [date, candle.low, candle.open, candle.close, candle.high, candle.volume];
                     console.log(datas)
-
+                    /* datasにSMAを追加 */
+                    if (data["smas"] != undefined) {
+                        for (j = 0; j < config.sma.values.length; j++) {
+                            if (config.sma.values[j][i] == 0) {
+                                datas.push(null);
+                            } else {
+                                datas.push(config.sma.values[j][i]);
+                            }
+                        }
+                    }
                     googleChartData.push(datas) //一つずづgoogleChartDataに追加していく(appendのイメージ)
                 }
-
                 dataTable.addRows(googleChartData);
                 drawChart(dataTable); //dataTableに基づいてチャートを描画
             })
         }
-        
+
         /* durationをボタンで動的に変化 */
         function changeDuration(s){
             config.candlestick.duration = s;
@@ -140,6 +194,29 @@
             }).mouseleave(function() {
                 config.api.enable = true; //dashboard_divからマウスが出たらtrue
             });
+
+            /* チェックボックスにチェックで表示、外すと非表示 */
+            $('#inputSma').change(function() {
+                if (this.checked === true) {
+                    config.sma.enable = true;
+                } else {
+                    config.sma.enable = false;
+                }
+                send();
+            });
+            /* 指定したperiodを反映 */
+            $("#inputSmaPeriod1").change(function() {
+                config.sma.periods[0] = this.value;
+                send();
+            });
+            $("#inputSmaPeriod2").change(function() {
+                config.sma.periods[1] = this.value;
+                send();
+            });
+            $("#inputSmaPeriod3").change(function() {
+                config.sma.periods[2] = this.value;
+                send();
+            });
         }
     </script>
 </head>
@@ -148,6 +225,13 @@
         <button onclick="changeDuration('1s');">1s</button>
         <button onclick="changeDuration('1m');">1m</button>
         <button onclick="changeDuration('1h');">1h</button>
+    </div>
+
+    <div>
+        SMA <input id="inputSma" type="checkbox">
+        Period<input id="inputSmaPeriod1" type="text" value="7" style="width: 15px;">
+        <input id="inputSmaPeriod2" type="text" value="14" style="width: 15px;">
+        <input id="inputSmaPeriod3" type="text" value="50" style="width: 15px;">
     </div>
 
     <div id="dashboard_div">

@@ -35,6 +35,29 @@ func apiCandleHandler(w http.ResponseWriter, r *http.Request) {
 
 	df, _ := models.GetAllCandle(durationTime, limit) //指定されたテーブルから全てのcandleを取得
 
+	sma := r.URL.Query().Get("sma")
+	if sma != "" {
+		strSmaPeriod1 := r.URL.Query().Get("smaPeriod1")
+		strSmaPeriod2 := r.URL.Query().Get("smaPeriod2")
+		strSmaPeriod3 := r.URL.Query().Get("smaPeriod3")
+		period1, err := strconv.Atoi(strSmaPeriod1)
+		if strSmaPeriod1 == "" || err != nil || period1 < 0 {
+			period1 = 7
+		}
+		period2, err := strconv.Atoi(strSmaPeriod2)
+		if strSmaPeriod2 == "" || err != nil || period2 < 0 {
+			period2 = 14
+		}
+		period3, err := strconv.Atoi(strSmaPeriod3)
+		if strSmaPeriod3 == "" || err != nil || period3 < 0 {
+			period3 = 50
+		}
+		/* 各periodに対するSMAを計算し、df.Smasに追加 */
+		df.AddSma(period1)
+		df.AddSma(period2)
+		df.AddSma(period3)
+	}
+
 	js, err := json.Marshal(df) //構造体→json
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
